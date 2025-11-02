@@ -1,0 +1,24 @@
+testing/
+node_modules/
+src/
+!template/src/
+!dist/
+docs/
+site/
+tests/
+
+.prettierrc.json
+amelia.json
+tsconfig.json
+yarn.lock
+.eslintignore
+.eslintrc.json
+.surfer
+.vscode/
+.github/
+.eslintrc.js
+jest.config.js
+
+# Patch generation
+.moz-central
+patches.sh
