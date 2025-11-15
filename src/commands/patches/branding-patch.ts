@@ -417,7 +417,7 @@ function configureProfileBranding(
 
 pref("startup.homepage_override_url", "https://astian.org/midori-browser/whatsnew?v=%VERSION%");
 pref("startup.homepage_welcome_url", "https://astian.org/midori-browser/welcome/");
-pref("startup.homepage_welcome_url.additional", "https://zen-browser.app/privacy-policy/");
+pref("startup.homepage_welcome_url.additional", "https://astian.org/astian-privacy-policies/");
 
 // Give the user x seconds to react before showing the big UI. default=192 hours
 pref("app.update.promptWaitTime", 691200);
