@@ -11,7 +11,7 @@ Build Midori browsers with ease
 ## Installation
 
 ```sh
-npm install @midori-browser/amelia
+npm install @goastian/amelia
 ```
 
 ## Documentation
