@@ -24,7 +24,7 @@ export const copyManual = async (
 ): Promise<void> => {
   let dest = ENGINE_DIR
   if (patchName === 'tests') {
-    dest = resolve(dest, 'browser', 'base', 'zen-components')
+    dest = resolve(dest, 'browser', 'base', 'midori-components')
   }
   const placeToCheck = patchName === 'tests' ? CURRENT_DIR : SRC_DIR
   // If the file exists and is not a symlink, we want to replace it with a

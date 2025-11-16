@@ -1,6 +1,6 @@
 {
   "name": "@goastian/amelia",
-  "version": "1.11.23",
+  "version": "1.11.24",
   "description": "Simplifying building firefox forks!",
   "main": "index.js",
   "bin": {
