@@ -79,8 +79,8 @@ function getReleaseMarURL(releaseInfo: ReleaseInfo) {
   if (releaseInfo.github) {
     let releaseVersion = releaseInfo.displayVersion
     const channel = dynamicConfig.get('brand') as string
-    if (channel === 'twilight') {
-      releaseVersion = 'twilight'
+    if (channel === 'dawn') {
+      releaseVersion = 'dawn'
     }
     completeMarURL = `https://github.com/${releaseInfo.github.repo}/releases/download/${releaseVersion}/${releaseMarName}`
     log.info(`Using '${completeMarURL}' as the distribution url`)
