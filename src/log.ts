@@ -128,10 +128,10 @@ class Log {
    */
   askForReport(): void {
     console.info(
-      'The following error is a bug. Please open an issue on the surfer issue structure with a link to your repository and the output from this command.'
+      'The following error is a bug. Please open an issue on the amelia issue structure with a link to your repository and the output from this command.'
     )
     console.info(
-      'The surfer issue tracker is located at: https://github.com/goastian/amelia/issues'
+      'The amelia issue tracker is located at: https://github.com/goastian/amelia/issues'
     )
   }
 }

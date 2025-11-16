@@ -156,7 +156,7 @@ export const defaultLicenseConfig: LicenseConfig = {
 }
 
 export const defaultConfig: Config = {
-  name: 'Unknown surfer build',
+  name: 'Unknown amelia build',
   vendor: 'Unknown',
   appId: 'unknown.appid',
   binaryName: 'firefox',

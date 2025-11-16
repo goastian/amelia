@@ -105,14 +105,14 @@ async function importInternalPatch(): Promise<Task> {
   }))
 
   return patchMethod<gitPatch.IGitPatch>(
-    'surfer',
+    'amelia',
     structuredPatches,
     async (patch) => await gitPatch.apply(patch.path)
   )
 }
 
 export async function applyPatches(): Promise<void> {
-  const canDoBrandingPatch = process.env.SURFER_NO_BRANDING_PATCH !== 'true'
+  const canDoBrandingPatch = process.env.AMELIA_NO_BRANDING_PATCH !== 'true'
   let tasks = [
     await importInternalPatch(),
     canDoBrandingPatch ? importMelonPatches() : undefined,

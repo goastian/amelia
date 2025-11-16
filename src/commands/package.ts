@@ -27,7 +27,7 @@ async function getLocales() {
   return localesText.split('\n')
 }
 
-export const surferPackage = async () => {
+export const ameliaPackage = async () => {
   const brandingKey = dynamicConfig.get('brand') as string
   const brandingDetails = config.brands[brandingKey]
 
@@ -88,7 +88,7 @@ export const surferPackage = async () => {
 
     // Windows has some special dist files that are available within the dist
     // directory.
-    if ((process as any).surferPlatform == 'win32') {
+    if ((process as any).ameliaPlatform == 'win32') {
       const installerDistributionDirectory = join(
         OBJ_DIR,
         'dist'
@@ -177,7 +177,7 @@ async function createMarFile(
   // <obj dir>/dist/${binaryName}/${brandFullName}.app and on everything else,
   // the contents of the folder <obj dir>/dist/${binaryName}
   const binary =
-    (process as any).surferPlatform == 'darwin'
+    (process as any).ameliaPlatform == 'darwin'
       ? process.env.JUST_MAR
         ? join(OBJ_DIR, 'dist', `${getCurrentBrandName()}.app`)
         : join(
@@ -202,7 +202,7 @@ async function createMarFile(
       MAR_CHANNEL_ID: channel,
       MAR: process.env.MAR ? windowsPathToUnix(process.env.MAR) : marBinary,
     },
-    shell: process.env.SURFER_SIGNING_MODE ? 'unix' : 'default',
+    shell: process.env.AMELIA_SIGNING_MODE ? 'unix' : 'default',
   })
   return marPath
 }

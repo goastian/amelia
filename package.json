@@ -1,10 +1,10 @@
 {
   "name": "@goastian/amelia",
-  "version": "1.11.22",
+  "version": "1.11.23",
   "description": "Simplifying building firefox forks!",
   "main": "index.js",
   "bin": {
-    "surfer": "./dist/index.js"
+    "amelia": "./dist/index.js"
   },
   "scripts": {
     "prepare": "npm run build",
