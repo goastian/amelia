@@ -15,7 +15,7 @@ import {
   windowsPathToUnix,
 } from '../utils'
 import { generateBrowserUpdateFiles } from './updates/browser'
-import { lstatSync, readFile, remove, removeSync } from 'fs-extra'
+import { readFile } from 'fs-extra'
 
 const machPath = resolve(ENGINE_DIR, 'mach')
 
