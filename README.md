@@ -4,7 +4,7 @@
 
 Build Midori browsers with ease
 
-**This is still in a prerelease / prototype phase. Changes will be made, things will be broken**
+**This is still in a prerelease / prototype phase.**
 
 </div>
 
