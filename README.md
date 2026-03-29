@@ -22,7 +22,7 @@ Documentation is available on [docs.gluon.dev](https://docs.gluon.dev) or in the
 
 The following is included in good faith. The writer is not a lawyer, and this is not legal advice.
 
-### Gluon and Melon
+### Surfer, Gluon and Melon
 
 Amelia is a fork of [Surfer](https://github.com/zen-browser/surfer) and Surfer is based on [Gluon](https://github.com/pulse-browser/gluon) but the author has stoped working on it. Gluon has been extracted from melon, the build tool for the [desktop version of Dot Browser](https://github.com/dothq/browser-desktop) under MPL v2.0.
 
