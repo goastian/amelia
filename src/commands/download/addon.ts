@@ -217,6 +217,13 @@ ${runTree(files, '')}`
 
 export async function initializeAddon(addon: AddonInfo & { name: string }) {
   const outPath = join(ENGINE_DIR, 'browser', 'extensions', addon.name)
+  const shouldSkipGitInit =
+    process.env.AMELIA_SKIP_ADDON_GIT_INIT == '1' || process.env.CI == 'true'
+
+  if (shouldSkipGitInit) {
+    log.info(`Initializing addon... (skip git commit)`)
+    return
+  }
 
   log.info(`Initializing addon...`)
 
@@ -235,15 +242,34 @@ export async function addAddonsToMozBuild(
 ) {
   log.info('Adding addons to mozbuild...')
 
-  // Discard the file to make sure it has no changes
-  await discard('browser/extensions/moz.build')
+  const mozbuildPath = join(ENGINE_DIR, 'browser', 'extensions', 'moz.build')
+  const appMozbuildPath = join(
+    ENGINE_DIR,
+    'browser',
+    'extensions',
+    'app.mozbuild'
+  )
 
-  const path = join(ENGINE_DIR, 'browser', 'extensions', 'moz.build')
+  if (existsSync(mozbuildPath)) {
+    // Discard the file to make sure it has no changes
+    await discard('browser/extensions/moz.build')
+  }
+
+  const targetMozbuildPath = existsSync(mozbuildPath)
+    ? mozbuildPath
+    : existsSync(appMozbuildPath)
+    ? appMozbuildPath
+    : mozbuildPath
+
+  if (!existsSync(targetMozbuildPath)) {
+    ensureDirectory(join(ENGINE_DIR, 'browser', 'extensions'))
+    writeFileSync(targetMozbuildPath, 'DIRS += []\n')
+  }
 
   // Append all the files to the bottom
   writeFileSync(
-    path,
-    `${readFileSync(path).toString()}\nDIRS += [${addons
+    targetMozbuildPath,
+    `${readFileSync(targetMozbuildPath).toString()}\nDIRS += [${addons
       .map((addon) => addon.name)
       .sort()
       .map((addon) => `"${addon}"`)

@@ -39,7 +39,9 @@ import { IMelonPatch } from './command'
 
 export const BRANDING_DIR = join(CONFIGS_DIR, 'branding')
 const BRANDING_STORE = join(ENGINE_DIR, 'browser', 'branding')
-const BRANDING_FF = join(BRANDING_STORE, 'unofficial')
+const BRANDING_FF = existsSync(join(BRANDING_STORE, 'unofficial'))
+  ? join(BRANDING_STORE, 'unofficial')
+  : join(BRANDING_STORE, 'official')
 const SHARED_NSH = join(
   ENGINE_DIR,
   'browser',

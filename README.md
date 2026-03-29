@@ -18,6 +18,38 @@ npm install @goastian/amelia
 
 Documentation is available on [docs.gluon.dev](https://docs.gluon.dev) or in the docs folder of this repository.
 
+## CI-safe packaging and addons
+
+Special handling for packaging and addons is now integrated in source:
+
+- Packaging now performs a Tor preflight check before `mach package`.
+- Tor preflight is skipped for unsupported targets: `linux-aarch64` and `win32-aarch64`.
+- `mach package` and `mach package-multi-locale` now abort explicitly if they fail.
+- Addon initialization skips git commit when `AMELIA_SKIP_ADDON_GIT_INIT=1` or when `CI=true`.
+- Addon mozbuild updates now use `browser/extensions/moz.build` when present, fall back to `browser/extensions/app.mozbuild`, and create a base file if needed.
+- Branding patch fallback now uses `browser/branding/official` when `browser/branding/unofficial` does not exist.
+
+### Usage
+
+Normal local run:
+
+```sh
+npm run self
+```
+
+CI-safe run (skip addon git commit):
+
+```sh
+npm run self:ci-safe
+```
+
+Target-aware Tor preflight (set these in CI for accurate behavior):
+
+```sh
+AMELIA_PLATFORM=linux
+AMELIA_COMPAT=aarch64
+```
+
 ## Licencing notes
 
 The following is included in good faith. The writer is not a lawyer, and this is not legal advice.

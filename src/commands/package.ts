@@ -19,7 +19,7 @@ import { readFile } from 'fs-extra'
 
 const machPath = resolve(ENGINE_DIR, 'mach')
 
-async function getLocales() {
+export async function getLocales() {
   // locales/supported-languages is a list of locales divided by newlines
   // open the file and split it by newlines
   let localesText = await readFile('locales/supported-languages', 'utf-8');
@@ -41,6 +41,41 @@ async function getLocales() {
   .join('\n')
   log.info(`Found locales:\n${localesText}`)
   return localesText.split('\n')
+}
+
+export function isTorUnavailableForTarget(platform: string, arch: string) {
+  return arch == 'aarch64' && (platform == 'linux' || platform == 'win32')
+}
+
+function verifyTorRuntimeIfRequired() {
+  const torPlatform = process.env.AMELIA_PLATFORM || ''
+  const torArch = process.env.AMELIA_COMPAT || ''
+  const torUnavailable = isTorUnavailableForTarget(torPlatform, torArch)
+
+  if (torUnavailable) {
+    log.info(
+      `Tor is not available for ${torPlatform}-${torArch}. Skipping Tor preflight check.`
+    )
+    return
+  }
+
+  const torDir = join(OBJ_DIR, 'dist', 'bin', 'tor')
+  const torBinaryPath =
+    (process as any).ameliaPlatform == 'win32'
+      ? join(torDir, 'tor.exe')
+      : join(torDir, 'tor')
+  const torGeoIpPath = join(torDir, 'geoip')
+  const torGeoIp6Path = join(torDir, 'geoip6')
+
+  if (
+    !existsSync(torBinaryPath) ||
+    !existsSync(torGeoIpPath) ||
+    !existsSync(torGeoIp6Path)
+  ) {
+    log.error(
+      `Tor runtime files are missing in ${torDir}. Run scripts/download-tor.sh for the target platform before packaging.`
+    )
+  }
 }
 
 export const ameliaPackage = async () => {
@@ -68,22 +103,32 @@ export const ameliaPackage = async () => {
 
     const arguments_ = ['package']
 
+    verifyTorRuntimeIfRequired()
+
     log.info(
       `Packaging \`${config.binaryName}\` with args ${JSON.stringify(
         arguments_.slice(1, 0)
       )}...`
     )
 
-    await dispatch(machPath, arguments_, ENGINE_DIR, true)
+    const packageResult = await dispatch(machPath, arguments_, ENGINE_DIR, true)
+    if (!packageResult.success) {
+      log.error('`mach package` failed. Aborting to avoid shipping stale artifacts.')
+    }
 
     log.info('Copying language packs')
 
-    await dispatch(
+    const multiLocaleResult = await dispatch(
       machPath,
       ['package-multi-locale', '--locales', ...(await getLocales())],
       ENGINE_DIR,
       true
     )
+    if (!multiLocaleResult.success) {
+      log.error(
+        '`mach package-multi-locale` failed. Multi-language packaging was not applied.'
+      )
+    }
 
     log.info('Copying results up')
 
