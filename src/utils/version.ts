@@ -19,6 +19,7 @@ export const shouldUseCandidate = (): boolean => {
   const brandingKey = dynamicConfig.get('brand')
   return (
     brandingKey !== 'release' &&
+    config.version.candidate !== undefined &&
     config.version.version !== config.version.candidate
   )
 }
