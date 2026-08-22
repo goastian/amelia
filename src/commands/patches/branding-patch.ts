@@ -109,7 +109,7 @@ async function setupImages(configPath: string, outputPath: string) {
   })
 
   // TODO: Custom MacOS icon support
-  if ((process as any).ameliaPlatform == 'darwin') {
+  if (process.platform == 'darwin') {
     log.debug('Generating Mac Icons')
     log.debug(`Using MacOS icon: ${join(configPath, 'logo-mac.png')}`)
     log.debug(`Output path: ${outputPath}`)
@@ -119,10 +119,19 @@ async function setupImages(configPath: string, outputPath: string) {
 
     await asyncIcns.convert({
       input: join(configPath, 'logo-mac.png'),
-      output: join(outputPath, 'firefox.icns'),
+      output: join(configPath, 'firefox.icns'),
       sizes: [16, 32, 64, 128, 256, 512],
       tmpDirectory: temporary,
     })
+  }
+
+    // Copy the icns files
+  if (existsSync(join(configPath, 'firefox.icns'))) {
+    log.debug('Copying MacOS icon')
+    copyFileSync(
+      join(configPath, 'firefox.icns'),
+      join(outputPath, 'firefox.icns')
+    )
   }
 
   mkdirSync(join(outputPath, 'content'), { recursive: true })
