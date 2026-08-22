@@ -54,6 +54,8 @@ ac_add_options --enable-update-channel=${brand}
 export ACCEPTED_MAR_CHANNEL_IDS=${brand}
 export MAR_CHANNEL_ID=${brand}
 
+mk_add_options ACCEPTED_MAR_CHANNEL_IDS=${brand}
+
 export MIDORI_FIREFOX_VERSION=${getFFVersionOrCandidate()}
 export MOZ_APPUPDATE_HOST=${
       config.updateHostname || 'localhost:7648 # This should not resolve'
