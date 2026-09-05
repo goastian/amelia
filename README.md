@@ -18,6 +18,23 @@ npm install @goastian/amelia
 
 Documentation is available on [docs.gluon.dev](https://docs.gluon.dev) or in the docs folder of this repository.
 
+## Application templates
+
+`amelia setup-project` asks which application base to create:
+
+- **Midori Browser**, based on Firefox.
+- **Astian Suite**, based on Thunderbird.
+
+Both templates create an `amelia.json` plus `src/`, `scripts/`, `patches/`,
+`configs/`, `build/`, and `.github/`. Thunderbird source downloads are
+validated through `engine/comm/mail/moz.build` and builds are configured with
+`--enable-project=comm/mail`.
+
+For a filesystem with too few inodes to create a full Git snapshot of a source
+tarball, set `AMELIA_LIGHTWEIGHT_INIT=1` during `download` or `ff-init`. This
+creates the commit Amelia needs to build, but `reset` cannot restore stock
+source files until the checkout is re-initialised normally.
+
 ## CI-safe packaging and addons
 
 Special handling for packaging and addons is now integrated in source:
@@ -62,6 +79,7 @@ This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-### Firefox
+### Firefox and Thunderbird
 
-This program downloads and modifies Firefox. [Follow their license](https://hg.mozilla.org/mozilla-central/file/tip/LICENSE) when distributing your program.
+This program downloads and modifies Firefox and Thunderbird source. Follow the
+applicable Mozilla licenses when distributing your program.

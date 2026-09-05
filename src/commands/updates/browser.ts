@@ -6,6 +6,7 @@ import { create } from 'xmlbuilder2'
 import { bin_name, compatMode, config } from '../..'
 import { DIST_DIR, OBJ_DIR } from '../../constants'
 import { log } from '../../log'
+import { getProductAdapter } from '../../products'
 import {
   dynamicConfig,
   ensureEmpty,
@@ -142,7 +143,14 @@ function getTargets(): string[] {
 }
 
 export async function generateBrowserUpdateFiles() {
-  log.info('Creating browser AUS update files')
+  const product = getProductAdapter(config.version.product)
+  if (!product.supportsManagedUpdates) {
+    log.error(
+      `Amelia-managed update manifests are not enabled for ${product.displayName}. Package output is available, but MAR update delivery must be configured separately.`
+    )
+  }
+
+  log.info(`Creating ${product.displayName} AUS update files`)
 
   const brandingKey = dynamicConfig.get('brand') as string
   const channel = brandingKey

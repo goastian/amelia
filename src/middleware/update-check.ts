@@ -3,17 +3,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import { bin_name, config } from '..'
 import { log } from '../log'
-import { getLatestFF } from '../utils'
+import { getLatestProductVersion } from '../utils'
+import { getProductAdapter } from '../products'
 
 export const updateCheck = async (): Promise<void> => {
-  const firefoxVersion = config.version.version
+  const product = getProductAdapter(config.version.product)
+  const productVersion = config.version.version
 
   try {
-    const version = await getLatestFF(config.version.product)
+    const version = await getLatestProductVersion(config.version.product)
 
-    if (firefoxVersion && version !== firefoxVersion)
+    if (productVersion && version !== productVersion)
       log.warning(
-        `Latest version of Firefox (${version}) does not match frozen version (${firefoxVersion}). Update Firefox with the command |${bin_name} update|.`
+        `Latest version of ${product.displayName} (${version}) does not match frozen version (${productVersion}). Update it with the command |${bin_name} update|.`
       )
   } catch (error) {
     log.warning(`Failed to check for updates.`)

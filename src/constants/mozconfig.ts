@@ -1,13 +1,16 @@
 import { config } from '..'
 import { getCurrentBrandName } from '../commands/package'
-import { getFFVersionOrCandidate } from '../utils'
+import { getSourceVersionOrCandidate } from '../utils'
+import { ProductAdapter } from '../products'
 
 const otherBuildModes = `# You can change to other build modes by running:
 #   $ amelia set buildMode [dev|debug|release]`
 
 export const internalMozconfg = (
   brand: string,
-  buildMode: 'dev' | 'debug' | 'release' | string
+  buildMode: 'dev' | 'debug' | 'release' | string,
+  product: ProductAdapter,
+  brandingPath = `${product.brandingRoot}/${brand}`
 ) => {
   let buildOptions = `# Unknown build mode ${buildMode}`
 
@@ -45,7 +48,7 @@ ac_add_options --enable-rust-simd`
 ${buildOptions}
 
 # Custom branding
-ac_add_options --with-branding=browser/branding/${brand}
+ac_add_options --with-branding=${brandingPath}
 
 # Config for updates
 ac_add_options --enable-update-channel=${brand}
@@ -55,7 +58,7 @@ export MAR_CHANNEL_ID=${brand}
 
 mk_add_options ACCEPTED_MAR_CHANNEL_IDS=${brand}
 
-export MIDORI_FIREFOX_VERSION=${getFFVersionOrCandidate()}
+export ${product.sourceVersionEnvironment}=${getSourceVersionOrCandidate()}
 export MOZ_APPUPDATE_HOST=${
       config.updateHostname || 'localhost:7648 # This should not resolve'
     }

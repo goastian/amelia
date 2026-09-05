@@ -1,0 +1,29 @@
+{
+  "name": "Astian Suite",
+  "vendor": "Astian",
+  "appId": "org.astian.suite",
+  "binaryName": "astian-suite",
+  "version": {
+    "product": "thunderbird",
+    "version": "155.0"
+  },
+  "buildOptions": {
+    "windowsUseSymbolicLinks": false
+  },
+  "addons": {},
+  "brands": {
+    "release": {
+      "backgroundColor": "#282A33",
+      "brandShorterName": "Astian",
+      "brandShortName": "Astian Suite",
+      "brandFullName": "Astian Suite",
+      "release": {
+        "displayVersion": "1.0.0"
+      }
+    }
+  },
+  "license": {
+    "ignoredFiles": [".*\\.json"],
+    "licenseType": "MPL-2.0"
+  }
+}

@@ -1,9 +1,10 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { copyFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isMatch } from 'picomatch'
 
 import { config } from '../..'
-import { ENGINE_DIR, MELON_TMP_DIR } from '../../constants'
+import { ENGINE_DIR, MELON_TMP_DIR, OBJ_DIR } from '../../constants'
 import { log } from '../../log'
 
 import {
@@ -18,6 +19,7 @@ import { downloadFileToLocation } from '../../utils/download'
 import { readItem } from '../../utils/store'
 import { discard } from '../discard'
 import axios from 'axios'
+import { dynamicConfig } from '../../utils'
 
 type GithubReleaseAssets =
   | { url: string; browser_download_url: string; name: string }[]
@@ -129,6 +131,76 @@ export async function downloadAddon(
   await delay(200)
 
   return temporaryFile
+}
+
+export function getDownloadedAddonPath(addon: AddonInfo & { name: string }) {
+  return join(MELON_TMP_DIR, addon.name + '.xpi')
+}
+
+function getThunderbirdDistributionExtensionsDirectory(): string {
+  if ((process as any).ameliaPlatform === 'darwin') {
+    const brand = dynamicConfig.get('brand') as string
+    const brandName = config.brands[brand]?.brandFullName || config.name
+    return join(
+      OBJ_DIR,
+      'dist',
+      `${brandName}.app`,
+      'Contents',
+      'Resources',
+      'distribution',
+      'extensions'
+    )
+  }
+
+  return join(OBJ_DIR, 'dist', 'bin', 'distribution', 'extensions')
+}
+
+/**
+ * Thunderbird add-ons are shipped as distribution XPIs. They are deliberately
+ * not copied into browser/extensions, which is a Firefox-specific source tree.
+ */
+export async function stageThunderbirdDistributionAddons(): Promise<void> {
+  const addons = getAddons()
+  if (!addons.length) return
+
+  const destination = getThunderbirdDistributionExtensionsDirectory()
+  await mkdir(destination, { recursive: true })
+
+  for (const addon of addons) {
+    const downloadedAddon = getDownloadedAddonPath(addon)
+    if (!existsSync(downloadedAddon)) {
+      throw new Error(
+        `Addon '${addon.name}' has not been downloaded. Run |amelia download| before running or packaging the application.`
+      )
+    }
+    await copyFile(downloadedAddon, join(destination, `${addon.id}.xpi`))
+  }
+}
+
+/**
+ * package-manifest.in describes what mach copies from dist/bin into installers
+ * and MARs. Keep this generated entry local to Thunderbird projects so a
+ * distribution XPI is present in every final artifact, not only in mach run.
+ */
+export function ensureThunderbirdDistributionAddonManifest(): void {
+  if (!getAddons().length) return
+
+  const manifest = join(
+    ENGINE_DIR,
+    'comm',
+    'mail',
+    'installer',
+    'package-manifest.in'
+  )
+  const entry = '@RESPATH@/distribution/extensions/*'
+  const contents = readFileSync(manifest).toString()
+
+  if (!contents.includes(entry)) {
+    writeFileSync(
+      manifest,
+      `${contents}\n; Amelia distributed extensions\n${entry}\n`
+    )
+  }
 }
 
 export async function unpackAddon(

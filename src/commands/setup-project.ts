@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import { writeFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { copyFile } from 'node:fs/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, relative } from 'node:path'
 
 import prompts from 'prompts'
 import { BIN_NAME } from '../constants'
@@ -13,11 +13,16 @@ import {
   Config,
   configPath,
   delay,
-  getLatestFF,
+  dynamicConfig,
+  getLatestProductVersion,
   projectDirectory,
-  SupportedProducts,
   walkDirectory,
 } from '../utils'
+import {
+  ApplicationTemplateId,
+  applicationTemplates,
+  getApplicationTemplate,
+} from '../application-templates'
 
 // =============================================================================
 // User interaction portion
@@ -36,76 +41,66 @@ export async function setupProject(): Promise<void> {
       process.exit(1)
     }
 
-    // Ask user for assorted information
-    const { product } = await prompts({
+    // Every new project starts from an application scaffold. The selected
+    // scaffold determines both the Gecko product and the project layout.
+    const { application } = await prompts({
       type: 'select',
-      name: 'product',
-      message: 'Select a product to fork',
-      choices: [
-        {
-          title: 'Firefox stable',
-          description: 'Releases around every 4 weeks, fairly stable',
-          value: SupportedProducts.Firefox,
-        },
-        {
-          title: 'Firefox extended support (older)',
-          description:
-            'The extended support version of Firefox. Will receive security updates for a longer period of time and less frequent, bigger, feature updates',
-          value: SupportedProducts.FirefoxESR,
-        },
-        {
-          title: 'Firefox developer edition (Not recommended)',
-          description: 'Tracks firefox beta, with a few config tweaks',
-          value: SupportedProducts.FirefoxDevelopment,
-        },
-        {
-          title: 'Firefox beta (Not recommended)',
-          description: 'Updates every 4 weeks. It will have unresolved bugs',
-          value: SupportedProducts.FirefoxBeta,
-        },
-        {
-          title: 'Firefox Nightly (Not recommended)',
-          description:
-            'Updates daily, with many bugs. Practically impossible to track',
-          value: SupportedProducts.FirefoxNightly,
-        },
-      ],
+      name: 'application',
+      message: 'Select the application to build',
+      choices: applicationTemplates.map((template) => ({
+        title: template.title,
+        description: template.description,
+        value: template.id,
+      })),
     })
 
-    if (typeof product === 'undefined') return
+    if (typeof application === 'undefined') return
 
-    const productVersion = await getLatestFF(product)
+    const applicationTemplate = getApplicationTemplate(
+      application as ApplicationTemplateId
+    )
+    const applicationTemplateDirectory = join(
+      templateDirectory,
+      'apps',
+      applicationTemplate.id
+    )
+    const templateConfig = JSON.parse(
+      readFileSync(join(applicationTemplateDirectory, 'amelia.json')).toString()
+    ) as Config
+    const productVersion = await getLatestProductVersion(
+      applicationTemplate.product
+    )
 
     const { version, name, appId, vendor, ui, binaryName } = await prompts([
       {
         type: 'text',
         name: 'version',
         message: 'Enter the version of this product',
-        initial: productVersion,
+        initial: productVersion || templateConfig.version.version,
       },
       {
         type: 'text',
         name: 'name',
         message: 'Enter a product name',
-        initial: 'Example browser',
+        initial: templateConfig.name,
       },
       {
         type: 'text',
         name: 'binaryName',
         message: 'Enter the name of the binary',
-        initial: 'example-browser',
+        initial: templateConfig.binaryName,
       },
       {
         type: 'text',
         name: 'vendor',
         message: 'Enter a vendor',
-        initial: 'Example company',
+        initial: templateConfig.vendor,
       },
       {
         type: 'text',
         name: 'appId',
         message: 'Enter an appid',
-        initial: 'com.example.browser',
+        initial: templateConfig.appId,
         // Horrible validation to make sure people don't chose something entirely wrong
         validate: (t: string) => t.includes('.'),
       },
@@ -113,41 +108,56 @@ export async function setupProject(): Promise<void> {
         type: 'select',
         name: 'ui',
         message: 'Select a ui mode template',
-        choices: [
-          {
-            title: 'None',
-            description:
-              'No files for the ui will be created, we will let you find that out on your own',
-            value: 'none',
-          },
-          {
-            title: 'UserChrome',
-            value: 'uc',
-          },
-          // TODO: We also need to add extension based theming like the version
-          // used in Pulse Browser
-        ],
+        choices:
+          applicationTemplate.id === ApplicationTemplateId.Midori
+            ? [
+                {
+                  title: 'None',
+                  description:
+                    'No UI files will be created beyond the application scaffold',
+                  value: 'none',
+                },
+                {
+                  title: 'UserChrome',
+                  value: 'uc',
+                },
+              ]
+            : [
+                {
+                  title: 'None',
+                  description:
+                    'Thunderbird UI overrides require product-specific patches',
+                  value: 'none',
+                },
+              ],
       },
     ])
 
-    const config: Partial<Config> = {
+    const config: Config = {
+      ...templateConfig,
       name,
       vendor,
       appId,
       binaryName,
-      version: { product, version },
+      version: {
+        ...templateConfig.version,
+        product: applicationTemplate.product,
+        version,
+      },
       buildOptions: {
         windowsUseSymbolicLinks: false,
       },
     }
 
     await copyRequired()
+    await copyApplicationTemplate(applicationTemplate.id)
 
     if (ui === 'uc') {
       await copyOptional(['browser/themes'])
     }
 
     writeFileSync(configPath, JSON.stringify(config, undefined, 2))
+    dynamicConfig.set('brand', Object.keys(config.brands)[0] || 'unofficial')
 
     // Append important stuff to gitignore
     const gitignore = join(projectDirectory, '.gitignore')
@@ -165,7 +175,7 @@ export async function setupProject(): Promise<void> {
     log.success(
       'Project setup complete!',
       '',
-      `You can start downloading the Firefox source code by running |${BIN_NAME} download|`,
+      `You can start downloading the ${applicationTemplate.title} source code by running |${BIN_NAME} download|`,
       'Or you can follow the getting started guide at https://docs.amelia.dev/getting-started/overview/'
     )
   } catch (error) {
@@ -230,9 +240,36 @@ async function copyRequired() {
 
   for (const file of directoryContents) {
     if (file.includes('.optional')) continue
+    const relativePath = relative(templateDirectory, file)
+    const normalizedPath = relativePath.replace(/\\/g, '/')
+    if (
+      normalizedPath.startsWith('apps/') ||
+      normalizedPath.startsWith('configs/')
+    )
+      continue
+    const outLocation = join(projectDirectory, relativePath)
+
+    if (!existsSync(outLocation)) {
+      mkdirSync(dirname(outLocation), { recursive: true })
+      await copyFile(file, outLocation)
+    }
+  }
+}
+
+async function copyApplicationTemplate(
+  application: ApplicationTemplateId
+): Promise<void> {
+  const applicationTemplateDirectory = join(
+    templateDirectory,
+    'apps',
+    application
+  )
+  const directoryContents = await walkDirectory(applicationTemplateDirectory)
+
+  for (const file of directoryContents) {
     const outLocation = join(
       projectDirectory,
-      file.replace(templateDirectory, '')
+      relative(applicationTemplateDirectory, file)
     )
 
     if (!existsSync(outLocation)) {

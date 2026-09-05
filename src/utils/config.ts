@@ -22,6 +22,8 @@ export enum SupportedProducts {
   FirefoxDevelopment = 'firefox-dev',
   FirefoxBeta = 'firefox-beta',
   FirefoxNightly = 'firefox-nightly',
+  Thunderbird = 'thunderbird',
+  ThunderbirdESR = 'thunderbird-esr',
 }
 
 export const validProducts = [
@@ -30,6 +32,8 @@ export const validProducts = [
   SupportedProducts.FirefoxDevelopment,
   SupportedProducts.FirefoxBeta,
   SupportedProducts.FirefoxNightly,
+  SupportedProducts.Thunderbird,
+  SupportedProducts.ThunderbirdESR,
 ]
 
 export interface LicenseConfig {
@@ -121,8 +125,8 @@ export interface Config {
   updateHostname?: string
   version: {
     /**
-     * What branch of firefox you are forking. e.g. stable ('firefox'), dev ('firefox-dev')
-     * , esr ('firefox-esr') etc.
+     * What Mozilla product and channel the project is based on. For example,
+     * Firefox stable ('firefox') or Thunderbird ESR ('thunderbird-esr').
      *
      * For use in code, use {@link SupportedProducts}
      */

@@ -6,43 +6,48 @@ import { log } from '../log'
 import { SupportedProducts } from './config'
 import { config } from '..'
 import { dynamicConfig } from '.'
-
-const firefoxTargets = JSON.parse(`{
-  "${SupportedProducts.Firefox}": "LATEST_FIREFOX_VERSION",
-  "${SupportedProducts.FirefoxBeta}": "LATEST_FIREFOX_DEVEL_VERSION",
-  "${SupportedProducts.FirefoxDevelopment}": "FIREFOX_DEVEDITION",
-  "${SupportedProducts.FirefoxESR}": "FIREFOX_ESR",
-  "${SupportedProducts.FirefoxNightly}": "FIREFOX_NIGHTLY"
-}`)
+import { getProductAdapter } from '../products'
 
 export const shouldUseCandidate = (): boolean => {
+  const adapter = getProductAdapter(config.version.product)
   const brandingKey = dynamicConfig.get('brand')
   return (
+    adapter.supportsCandidates &&
     brandingKey !== 'release' &&
     config.version.candidate !== undefined &&
     config.version.version !== config.version.candidate
   )
 }
 
-export const getFFVersionOrCandidate = () => {
+export const getSourceVersionOrCandidate = () => {
   return shouldUseCandidate()
     ? config.version.candidate
     : config.version.version
 }
 
-export const getLatestFF = async (
+export const getLatestProductVersion = async (
   product: SupportedProducts = SupportedProducts.Firefox
 ): Promise<string> => {
-  try {
-    const { data } = await axios.get(
-      'https://product-details.mozilla.org/1.0/firefox_versions.json'
-    )
+  const adapter = getProductAdapter(product)
+  const versionKey = adapter.productDetailsKeys[product]
 
-    return data[firefoxTargets[product]]
+  if (!versionKey) {
+    throw new Error(`No version metadata key is configured for '${product}'`)
+  }
+
+  try {
+    const { data } = await axios.get(adapter.productDetailsUrl)
+
+    return data[versionKey]
   } catch (error) {
-    log.warning('Failed to get latest firefox version with error:')
+    log.warning(`Failed to get the latest ${adapter.displayName} version:`)
     log.error(error)
 
     return ''
   }
 }
+
+// Compatibility exports for integrations that still import the Firefox-named
+// helpers. They now dispatch from version.product and also work for Thunderbird.
+export const getFFVersionOrCandidate = getSourceVersionOrCandidate
+export const getLatestFF = getLatestProductVersion

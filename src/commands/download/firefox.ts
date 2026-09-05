@@ -20,41 +20,57 @@ import {
   resolveAddonDownloadUrl,
   unpackAddon,
 } from './addon'
-import {
-  configPath,
-  getFFVersionOrCandidate,
-  shouldUseCandidate,
-} from '../../utils'
+import { configPath, shouldUseCandidate } from '../../utils'
 import fs from 'fs-extra'
+import {
+  getProductAdapter,
+  getProductCandidateSourceUrl,
+  getProductReleaseSourceUrl,
+  getProductSourceArchiveName,
+  getProductSourceRoot,
+  ProductAdapter,
+} from '../../products'
 
-export function shouldSetupFirefoxSource() {
+export function shouldSetupSource() {
+  const product = getProductAdapter(config.version.product)
   return !(
     existsSync(ENGINE_DIR) &&
-    existsSync(resolve(ENGINE_DIR, 'toolkit', 'moz.build'))
+    existsSync(resolve(ENGINE_DIR, product.sourceReadyPath))
   )
 }
 
-export async function setupFirefoxSource(
+// Kept for external callers that imported the old API.
+export const shouldSetupFirefoxSource = shouldSetupSource
+
+export async function setupProductSource(
   version: string,
   candidateBuild: number,
   isCandidate = false
 ) {
-  const firefoxSourceTar = await downloadFirefoxSource(
+  const product = getProductAdapter(config.version.product)
+  const sourceTar = await downloadProductSource(
+    product,
     version,
     candidateBuild,
     isCandidate
   )
 
-  await unpackFirefoxSource(firefoxSourceTar)
+  await unpackProductSource(sourceTar, product, version)
 
   if (!process.env.CI_SKIP_INIT) {
-    log.info('Init firefox')
+    log.info(`Initialising ${product.displayName}`)
     await init(ENGINE_DIR)
   }
 }
 
-async function unpackFirefoxSource(name: string): Promise<void> {
-  log.info(`Unpacking Firefox...`)
+export const setupFirefoxSource = setupProductSource
+
+export async function unpackProductSource(
+  name: string,
+  product: ProductAdapter,
+  version: string
+): Promise<void> {
+  log.info(`Unpacking ${product.displayName}...`)
 
   ensureDirectory(ENGINE_DIR)
   let tarExec = 'tar'
@@ -70,7 +86,7 @@ async function unpackFirefoxSource(name: string): Promise<void> {
     // check for it and ask for the user to install it if necessary
     if (!commandExistsSync('gtar')) {
       throw new Error(
-        `GNU Tar is required to extract Firefox's source on MacOS. Please install it using the command |brew install gnu-tar| or |sudo port install gnutar| and try again`
+        `GNU Tar is required to extract ${product.displayName}'s source on MacOS. Please install it using the command |brew install gnu-tar| or |sudo port install gnutar| and try again`
       )
     }
 
@@ -79,7 +95,7 @@ async function unpackFirefoxSource(name: string): Promise<void> {
 
   log.info(`Unpacking ${resolve(MELON_TMP_DIR, name)} to ${ENGINE_DIR}`)
   if (process.platform === 'win32') {
-    log.info('Unpacking Firefox source on Windows (7z)')
+    log.info(`Unpacking ${product.displayName} source on Windows (7z)`)
     await execa('7z', [
       'x',
       resolve(MELON_TMP_DIR, name),
@@ -93,13 +109,13 @@ async function unpackFirefoxSource(name: string): Promise<void> {
     ])
     const archiveDir = resolve(
       MELON_TMP_DIR,
-      'firefox-' + getFFVersionOrCandidate()
+      getProductSourceRoot(product, version)
     )
     if (existsSync(ENGINE_DIR)) {
       // remove the existing engine directory
       fs.removeSync(ENGINE_DIR)
     }
-    log.info('Moving Firefox source to engine directory')
+    log.info(`Moving ${product.displayName} source to engine directory`)
     fs.moveSync(archiveDir, ENGINE_DIR)
     return
   }
@@ -117,29 +133,28 @@ async function unpackFirefoxSource(name: string): Promise<void> {
       shell: BASH_PATH,
     }
   )
-  log.info(`Unpacked Firefox source to ${ENGINE_DIR}`)
+  const readyPath = resolve(ENGINE_DIR, product.sourceReadyPath)
+  if (!existsSync(readyPath)) {
+    log.error(
+      `The extracted source is not a ${product.displayName} checkout: '${product.sourceReadyPath}' is missing.`
+    )
+  }
+
+  log.info(`Unpacked ${product.displayName} source to ${ENGINE_DIR}`)
 }
 
-async function downloadFirefoxSource(
+export async function downloadProductSource(
+  product: ProductAdapter,
   version: string,
   candidateBuild: number,
   isCandidate = false
 ) {
-  const filename = `firefox-${version}.source.tar.xz`
-  const getReleaseUri = (build: string) => {
-    let base = `https://archive.mozilla.org/pub/firefox/releases/${version}/source/`
-    if (isCandidate) {
-      console.log('Using candidate build')
-      base = `https://archive.mozilla.org/pub/firefox/candidates/${version}-candidates/${build}/source/`
-    }
-
-    return base + filename
-  }
+  const filename = getProductSourceArchiveName(product, version)
 
   const fsParent = MELON_TMP_DIR
   const fsSaveLocation = resolve(fsParent, filename)
 
-  log.info(`Locating Firefox release ${version}...`)
+  log.info(`Locating ${product.displayName} release ${version}...`)
 
   await ensureDirectory(dirname(fsSaveLocation))
 
@@ -154,11 +169,13 @@ async function downloadFirefoxSource(
       `Workspace already exists.\nRemove that workspace and run |${bin_name} download ${version}| again.`
     )
 
-  log.info(`Downloading Firefox release ${version}...`)
+  log.info(`Downloading ${product.displayName} release ${version}...`)
 
   // Try to download the second build first, as it is more likely to be the
   // correct build
-  const url = getReleaseUri(`build${candidateBuild}`)
+  const url = isCandidate
+    ? getProductCandidateSourceUrl(product, version, candidateBuild)
+    : getProductReleaseSourceUrl(product, version)
   await downloadFileToLocation(url, resolve(MELON_TMP_DIR, filename))
   return filename
 }
@@ -172,16 +189,23 @@ export async function downloadInternals({
   force?: boolean
   isCandidate?: boolean
 }) {
+  const product = getProductAdapter(config.version.product)
+
   // Provide a legible error if there is no version specified
   if (!version) {
     log.error(
-      'You have not specified a version of firefox in your config file. This is required to build a firefox fork.'
+      `You have not specified a ${product.displayName} version in your config file. This is required to build a ${product.displayName} application.`
     )
     process.exit(1)
   }
 
   let candidateBuild = 1
   if (isCandidate) {
+    if (!product.supportsCandidates) {
+      log.error(
+        `${product.displayName} candidate source downloads are not supported.`
+      )
+    }
     version = config.version.candidate as string
     candidateBuild = config.version.candidateBuild as number
   }
@@ -201,19 +225,30 @@ export async function downloadInternals({
   }
 
   if (!existsSync(ENGINE_DIR)) {
-    await setupFirefoxSource(version, candidateBuild, isCandidate)
+    await setupProductSource(version, candidateBuild, isCandidate)
+  } else if (shouldSetupSource()) {
+    log.error(
+      `The existing engine directory is not a ${product.displayName} source tree. Run |${bin_name} download --force| to replace it.`
+    )
   }
 
-  for (const addon of getAddons()) {
-    const downloadUrl = await resolveAddonDownloadUrl(addon)
-    const downloadedXPI = await downloadAddon(downloadUrl, addon)
+  if (product.id == 'firefox') {
+    for (const addon of getAddons()) {
+      const downloadUrl = await resolveAddonDownloadUrl(addon)
+      const downloadedXPI = await downloadAddon(downloadUrl, addon)
 
-    await unpackAddon(downloadedXPI, addon)
-    await generateAddonMozBuild(addon)
-    await initializeAddon(addon)
+      await unpackAddon(downloadedXPI, addon)
+      await generateAddonMozBuild(addon)
+      await initializeAddon(addon)
+    }
+
+    await addAddonsToMozBuild(getAddons())
+  } else {
+    for (const addon of getAddons()) {
+      const downloadUrl = await resolveAddonDownloadUrl(addon)
+      await downloadAddon(downloadUrl, addon)
+    }
   }
-
-  await addAddonsToMozBuild(getAddons())
 
   if (!isCandidate) {
     config.version.version = version
@@ -222,4 +257,3 @@ export async function downloadInternals({
   }
   writeFileSync(configPath, JSON.stringify(config, undefined, 2))
 }
-

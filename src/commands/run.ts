@@ -7,8 +7,11 @@ import { bin_name } from '..'
 import { ENGINE_DIR } from '../constants'
 import { log } from '../log'
 import { config, dispatch } from '../utils'
+import { getProductAdapter } from '../products'
+import { stageThunderbirdDistributionAddons } from './download/addon'
 
 export const run = async (chrome?: string) => {
+  const product = getProductAdapter(config.version.product)
   const directories = readdirSync(ENGINE_DIR)
   const objectDirname = directories.find((directory) =>
     directory.startsWith('obj-')
@@ -21,6 +24,9 @@ export const run = async (chrome?: string) => {
   const objectDirectory = resolve(ENGINE_DIR, objectDirname)
 
   if (existsSync(objectDirectory)) {
+    if (product.id === 'thunderbird') {
+      await stageThunderbirdDistributionAddons()
+    }
     dispatch(
       './mach',
       ['run', ...(chrome ? ['-chrome', chrome] : [])],

@@ -4,9 +4,11 @@
 import { existsSync } from 'node:fs'
 import { log } from '../log'
 import { BIN_NAME, ENGINE_DIR } from '../constants'
-import { dispatch, hasConfig } from '../utils'
+import { config, dispatch, hasConfig } from '../utils'
+import { getProductAdapter } from '../products'
 
 export const status = async (): Promise<void> => {
+  const product = getProductAdapter(config.version.product)
   const configExists = hasConfig()
   const engineExists = existsSync(ENGINE_DIR)
 
@@ -19,7 +21,9 @@ export const status = async (): Promise<void> => {
   }
 
   if (engineExists) {
-    log.info("The following changes have been made to firefox's source code")
+    log.info(
+      `The following changes have been made to ${product.displayName}'s source code`
+    )
     await dispatch('git', ['diff'], ENGINE_DIR)
 
     return

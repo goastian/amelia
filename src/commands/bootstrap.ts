@@ -6,10 +6,14 @@ import { config } from '..'
 import { ENGINE_DIR } from '../constants'
 import { log } from '../log'
 import { configDispatch } from '../utils'
+import { getProductAdapter } from '../products'
 
 export const bootstrap = async () => {
-  log.info(`Bootstrapping ${config.name}...`)
+  const product = getProductAdapter(config.version.product)
+  log.info(`Bootstrapping ${config.name} (${product.displayName})...`)
 
+  // Thunderbird uses Gecko's desktop toolchain bootstrap too. Its product is
+  // selected by --enable-project=comm/mail in the generated mozconfig.
   const arguments_ = ['--application-choice', 'browser']
 
   console.debug(`Passing through to |mach bootstrap|`)

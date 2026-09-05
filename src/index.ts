@@ -27,6 +27,7 @@ import { BIN_NAME, ENGINE_DIR } from './constants'
 import { updateCheck } from './middleware/update-check'
 import { registerCommand } from './middleware/register-command'
 import { log } from './log'
+import { getProductAdapter } from './products'
 
 // We have to use a dynamic require here, otherwise the typescript compiler
 // mucks up the directory structure
@@ -37,16 +38,19 @@ export const config = configInited
 
 const program = new Command()
 
-let reportedFFVersion
+const product = getProductAdapter(config.version.product)
+let reportedSourceVersion
 
-if (existsSync(resolve(ENGINE_DIR, 'browser', 'config', 'version.txt'))) {
-  const version = readFileSync(
-    resolve(ENGINE_DIR, 'browser', 'config', 'version.txt')
-  )
+const sourceVersionFile = product.versionFiles.find((path) =>
+  existsSync(resolve(ENGINE_DIR, path))
+)
+
+if (sourceVersionFile) {
+  const version = readFileSync(resolve(ENGINE_DIR, sourceVersionFile))
     .toString()
     .replace(/\n/g, '')
 
-  if (version !== getFFVersionOrCandidate()) reportedFFVersion = version
+  if (version !== getFFVersionOrCandidate()) reportedSourceVersion = version
 }
 
 export const bin_name = BIN_NAME
@@ -72,14 +76,16 @@ program
     versionFormatter([
       ...programVersions,
       {
-        name: 'Firefox',
+        name: product.displayName,
         value: `${config.version.version} ${
-          reportedFFVersion ? `(being reported as ${reportedFFVersion})` : ''
+          reportedSourceVersion
+            ? `(being reported as ${reportedSourceVersion})`
+            : ''
         }`,
       },
       { name: 'Amelia', value: ameliaVersion },
-      reportedFFVersion
-        ? `Mismatch detected between expected Firefox version and the actual version.\nYou may have downloaded the source code using a different version and\nthen switched to another branch.`
+      reportedSourceVersion
+        ? `Mismatch detected between expected ${product.displayName} version and the actual source version.\nYou may have downloaded the source code using a different version and\nthen switched to another branch.`
         : '',
     ])
   )

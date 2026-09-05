@@ -5,6 +5,7 @@
 import { bin_name, config } from '..'
 import { log } from '../log'
 import { downloadInternals } from './download/firefox'
+import { getProductAdapter } from '../products'
 
 type Options = {
   force?: boolean
@@ -12,11 +13,12 @@ type Options = {
 
 export const download = async (options: Options): Promise<void> => {
   const version = config.version.version
+  const product = getProductAdapter(config.version.product)
 
   // If gFFVersion isn't specified, provide legible error
   if (!version) {
     log.error(
-      'You have not specified a version of firefox in your config file. This is required to build a firefox fork'
+      `You have not specified a ${product.displayName} version in your config file. This is required to build a ${product.displayName} application.`
     )
     process.exit(1)
   }
@@ -24,7 +26,7 @@ export const download = async (options: Options): Promise<void> => {
   await downloadInternals({ version, force: options.force })
 
   log.success(
-    `You should be ready to make changes to ${config.name}.`,
+    `You should be ready to make changes to ${config.name} based on ${product.displayName}.`,
     '',
     'Remember to change the repository in configs/common/mozconfig to your own.',
     `You should import the patches next, run |${bin_name} import|.`,

@@ -16,14 +16,19 @@ import {
 } from '../utils'
 import { generateBrowserUpdateFiles } from './updates/browser'
 import { readFile } from 'fs-extra'
+import { getProductAdapter } from '../products'
+import {
+  ensureThunderbirdDistributionAddonManifest,
+  stageThunderbirdDistributionAddons,
+} from './download/addon'
 
 const machPath = resolve(ENGINE_DIR, 'mach')
 
 export async function getLocales() {
   // locales/supported-languages is a list of locales divided by newlines
   // open the file and split it by newlines
-  let localesText = await readFile('locales/supported-languages', 'utf-8');
-  const languageMaps = await readFile('locales/language-maps', 'utf-8');
+  let localesText = await readFile('locales/supported-languages', 'utf-8')
+  const languageMaps = await readFile('locales/language-maps', 'utf-8')
   // Language maps contains a list of locale mappings for specific locales
   // e.g. "nb:nb-NO" means that "nb" should be mapped to "nb-NO"
   const mappings: Record<string, string> = {}
@@ -34,11 +39,11 @@ export async function getLocales() {
     }
   }
   localesText = localesText
-  .split('\n')
-  .map((locale) => locale.trim())
-  .filter((locale) => locale.length > 0)
-  .map((locale) => (mappings[locale] ? mappings[locale] : locale))
-  .join('\n')
+    .split('\n')
+    .map((locale) => locale.trim())
+    .filter((locale) => locale.length > 0)
+    .map((locale) => (mappings[locale] ? mappings[locale] : locale))
+    .join('\n')
   log.info(`Found locales:\n${localesText}`)
   return localesText.split('\n')
 }
@@ -79,7 +84,24 @@ function verifyTorRuntimeIfRequired() {
 }
 
 export const ameliaPackage = async () => {
-  const brandingKey = dynamicConfig.get('brand') as string
+  const product = getProductAdapter(config.version.product)
+  const requestedBrand = dynamicConfig.get('brand') as string
+  const brandingKey = config.brands[requestedBrand]
+    ? requestedBrand
+    : Object.keys(config.brands)[0]
+
+  if (!brandingKey) {
+    log.error(
+      'No brand is configured. Add at least one entry to amelia.json.brands.'
+    )
+  }
+
+  if (brandingKey !== requestedBrand) {
+    log.warning(
+      `Brand '${requestedBrand}' is not configured. Packaging with '${brandingKey}'.`
+    )
+  }
+
   const brandingDetails = config.brands[brandingKey]
 
   const version = brandingDetails.release.displayVersion
@@ -103,7 +125,14 @@ export const ameliaPackage = async () => {
 
     const arguments_ = ['package']
 
-    verifyTorRuntimeIfRequired()
+    if (product.id === 'firefox') {
+      verifyTorRuntimeIfRequired()
+    }
+
+    if (product.id === 'thunderbird') {
+      await stageThunderbirdDistributionAddons()
+      ensureThunderbirdDistributionAddonManifest()
+    }
 
     log.info(
       `Packaging \`${config.binaryName}\` with args ${JSON.stringify(
@@ -113,20 +142,28 @@ export const ameliaPackage = async () => {
 
     const packageResult = await dispatch(machPath, arguments_, ENGINE_DIR, true)
     if (!packageResult.success) {
-      log.error('`mach package` failed. Aborting to avoid shipping stale artifacts.')
+      log.error(
+        '`mach package` failed. Aborting to avoid shipping stale artifacts.'
+      )
     }
 
-    log.info('Copying language packs')
+    if (product.supportsMultiLocalePackaging) {
+      log.info('Copying language packs')
 
-    const multiLocaleResult = await dispatch(
-      machPath,
-      ['package-multi-locale', '--locales', ...(await getLocales())],
-      ENGINE_DIR,
-      true
-    )
-    if (!multiLocaleResult.success) {
-      log.error(
-        '`mach package-multi-locale` failed. Multi-language packaging was not applied.'
+      const multiLocaleResult = await dispatch(
+        machPath,
+        ['package-multi-locale', '--locales', ...(await getLocales())],
+        ENGINE_DIR,
+        true
+      )
+      if (!multiLocaleResult.success) {
+        log.error(
+          '`mach package-multi-locale` failed. Multi-language packaging was not applied.'
+        )
+      }
+    } else {
+      log.info(
+        `${product.displayName} multi-locale packaging is not enabled by Amelia yet. Continuing with mach package output.`
       )
     }
 
@@ -192,14 +229,20 @@ export const ameliaPackage = async () => {
     }
   }
 
-  const marPath = await createMarFile(
-    version,
-    channel,
-    brandingDetails.release.github
-  )
-  dynamicConfig.set('marPath', marPath)
+  if (product.supportsManagedUpdates) {
+    const marPath = await createMarFile(
+      version,
+      channel,
+      brandingDetails.release.github
+    )
+    dynamicConfig.set('marPath', marPath)
 
-  await generateBrowserUpdateFiles()
+    await generateBrowserUpdateFiles()
+  } else {
+    log.info(
+      `${product.displayName} packaging completed without Amelia-managed MAR updates.`
+    )
+  }
 
   log.info()
   log.info(`Output written to ${DIST_DIR}`)
@@ -208,13 +251,16 @@ export const ameliaPackage = async () => {
 }
 
 export function getCurrentBrandName(): string {
-  const brand = dynamicConfig.get('brand') as string
+  const requestedBrand = dynamicConfig.get('brand') as string
+  const brand = config.brands[requestedBrand]
+    ? requestedBrand
+    : Object.keys(config.brands)[0]
 
   if (brand == 'unofficial') {
     return 'Nightly'
   }
 
-  return config.brands[brand].brandShortName
+  return brand ? config.brands[brand].brandShortName : config.name
 }
 
 async function createMarFile(

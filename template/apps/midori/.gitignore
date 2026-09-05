@@ -1,0 +1,5 @@
+.amelia/
+engine/
+dist/
+obj-*/
+node_modules/

@@ -71,7 +71,7 @@ export const configDispatch = (
     }
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const proc = execa(cmd, config?.args, {
       cwd: config?.cwd || process.cwd(),
       shell: shell,
@@ -88,7 +88,16 @@ export const configDispatch = (
     proc.stderr?.on('error', (d) => handle(d, config?.killOnError || false))
 
     proc.on('exit', (code) => {
-      resolve({ success: code === 0, output })
+      const result = { success: code === 0, output }
+
+      if (!result.success && config?.killOnError) {
+        reject(
+          new Error(`Command '${cmd}' exited with code ${code ?? 'unknown'}`)
+        )
+        return
+      }
+
+      resolve(result)
     })
   })
 }

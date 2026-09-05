@@ -76,7 +76,7 @@ export const commands: Cmd[] = [
   },
   {
     cmd: 'download',
-    description: 'Download Firefox.',
+    description: 'Download the source for the selected application product.',
     options: [
       {
         arg: '--force',
@@ -89,7 +89,8 @@ export const commands: Cmd[] = [
   {
     cmd: 'update',
     aliases: ['update-ff'],
-    description: 'Update Firefox to latest version.',
+    description:
+      'Update the selected application product to its latest version.',
     requestController: async () => (await import('./commands/update')).update,
     disableMiddleware: true,
   },
@@ -115,12 +116,12 @@ export const commands: Cmd[] = [
   {
     cmd: 'ff-init <source>',
     aliases: ['ff-initialise', 'ff-initialize'],
-    description: 'Initialise the Firefox directory.',
+    description: 'Initialise the downloaded product source directory.',
     requestController: async () => (await import('./commands/init')).init,
   },
   {
     cmd: 'ff-version',
-    description: 'Retrieves the version of firefox to build against',
+    description: 'Retrieves the selected product version to build against',
     requestController: async () =>
       (await import('./commands/ff-version')).getFFVersion,
   },
@@ -140,19 +141,19 @@ export const commands: Cmd[] = [
   {
     cmd: 'package',
     aliases: ['pack'],
-    description: 'Package the browser for distribution.',
+    description: 'Package the application for distribution.',
     requestController: async () =>
       (await import('./commands/package')).ameliaPackage,
   },
   {
     cmd: 'reset',
-    description: 'Reset the source directory to stock Firefox.',
+    description: 'Reset the source directory to the stock selected product.',
     requestController: async () => (await import('./commands/reset')).reset,
   },
   {
     cmd: 'run [chrome]',
     aliases: ['r', 'open'],
-    description: 'Run the browser.',
+    description: 'Run the application.',
     requestController: async () => (await import('./commands/run')).run,
   },
   {

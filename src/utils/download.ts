@@ -15,52 +15,60 @@ export async function downloadFileToLocation(
 ): Promise<void> {
   return new Promise((resolve, reject) =>
     (async () => {
-      const { data, headers } = await axios.get(url, {
-        responseType: 'stream',
-      })
+      try {
+        const { data, headers } = await axios.get(url, {
+          responseType: 'stream',
+        })
 
-      const length = headers['content-length']
+        const length = headers['content-length']
+        const writer = createWriteStream(writeOutPath)
+        let receivedBytes = 0
+        let settled = false
 
-      const writer = createWriteStream(writeOutPath)
+        const progressBar = new cliProgress.SingleBar({
+          stream: consoleWriter
+            ? new Duplex({
+                write: (chunk, encoding, next) => {
+                  consoleWriter(chunk.toString())
+                  next()
+                },
+                read: () => {
+                  /* Empty output */
+                },
+              })
+            : process.stdout,
+        })
+        progressBar.start(length as any, receivedBytes)
 
-      let receivedBytes = 0
-
-      const progressBar = new cliProgress.SingleBar({
-        stream: consoleWriter
-          ? new Duplex({
-              write: (chunk, enconding, next) => {
-                consoleWriter(chunk.toString())
-                next()
-              },
-              read: () => {
-                /* Empty output */
-              },
-            })
-          : process.stdout,
-      })
-      progressBar.start(length as any, receivedBytes)
-
-      data.on('data', (chunk: { length: number }) => {
-        receivedBytes += chunk.length
-      })
-      data.pipe(writer)
-      data.on('error', (error: unknown) => {
-        log.warning(
-          `An error occured whilst downloading ${url}. It might be ignored`
+        const progressInterval = setInterval(
+          () => progressBar.update(receivedBytes),
+          500
         )
+        const fail = (error: unknown) => {
+          if (settled) return
+          settled = true
+          clearInterval(progressInterval)
+          progressBar.stop()
+          log.warning(`An error occurred whilst downloading ${url}.`)
+          reject(error)
+        }
+
+        data.on('data', (chunk: { length: number }) => {
+          receivedBytes += chunk.length
+        })
+        data.on('error', fail)
+        writer.on('error', fail)
+        writer.on('finish', () => {
+          if (settled) return
+          settled = true
+          clearInterval(progressInterval)
+          progressBar.stop()
+          resolve()
+        })
+        data.pipe(writer)
+      } catch (error) {
         reject(error)
-      })
-
-      const progressInterval = setInterval(
-        () => progressBar.update(receivedBytes),
-        500
-      )
-
-      data.on('end', () => {
-        clearInterval(progressInterval)
-        progressBar.stop()
-        resolve()
-      })
+      }
     })()
   )
 }

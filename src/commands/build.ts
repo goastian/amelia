@@ -15,6 +15,7 @@ import {
   dynamicConfig,
   stringTemplate,
 } from '../utils'
+import { getProductAdapter } from '../products'
 
 const platform: Record<string, string> = {
   win32: 'windows',
@@ -26,22 +27,25 @@ const applyConfig = async (os: string) => {
   log.info('Applying mozconfig...')
 
   const brandingKey = dynamicConfig.get('brand')
+  const product = getProductAdapter(config.version.product)
 
   let changeset
 
   try {
     // Retrieve changeset
-    const { stdout } = await execa('git', ['rev-parse', 'HEAD'])
+    const { stdout } = await execa('git', ['rev-parse', 'HEAD'], {
+      cwd: ENGINE_DIR,
+    })
     changeset = stdout.trim()
   } catch (error) {
     log.warning(
-      'Amelia expects that you are building your browser with git as your version control'
+      'Amelia expects the downloaded product source to be initialised with git'
     )
     log.warning(
-      'If you are using some other version control system, please migrate to git'
+      'If the source initialisation failed, run |amelia ff-init engine| again'
     )
-    log.warning('Otherwise, you can setup git in this folder by running:')
-    log.warning('   |git init|')
+    log.warning('Otherwise, initialise the source directory by running:')
+    log.warning(`   |${bin_name} ff-init engine|`)
 
     throw error
   }
@@ -50,11 +54,9 @@ const applyConfig = async (os: string) => {
     name: config.name,
     vendor: config.name,
     appId: config.appId,
-    brandingDir: existsSync(
-      join(ENGINE_DIR, 'browser', 'branding', brandingKey)
-    )
-      ? 'browser/branding/' + brandingKey
-      : 'browser/branding/unofficial',
+    brandingDir: existsSync(join(ENGINE_DIR, product.brandingRoot, brandingKey))
+      ? `${product.brandingRoot}/${brandingKey}`
+      : `${product.brandingRoot}/${product.fallbackBranding}`,
     binName: config.binaryName,
     changeset,
   }
@@ -85,7 +87,12 @@ const applyConfig = async (os: string) => {
     '\n\n' +
     customConfig +
     '\n' +
-    internalMozconfg(brandingKey, dynamicConfig.get('buildMode'))
+    internalMozconfg(
+      brandingKey,
+      dynamicConfig.get('buildMode'),
+      product,
+      templateOptions.brandingDir
+    )
 
   writeFileSync(resolve(ENGINE_DIR, 'mozconfig'), mergedConfig)
 
@@ -102,14 +109,15 @@ const applyConfig = async (os: string) => {
       )
   })
 
-  // We need to install the browser display version inside of browser/config/version.txt
-  // and browser/config/version_display.txt
+  // Install the application display version in the source files used by the
+  // selected product. Firefox and Thunderbird keep these in different trees.
   const brandingConfig: BrandInfo | undefined = config.brands[brandingKey]
   const version = brandingConfig?.release?.displayVersion || '1.0.0'
 
-  log.debug(`Writing ${version} to the browser version files`)
-  writeFileSync(join(ENGINE_DIR, 'browser/config/version.txt'), version)
-  writeFileSync(join(ENGINE_DIR, 'browser/config/version_display.txt'), version)
+  log.debug(`Writing ${version} to the ${product.displayName} version files`)
+  for (const versionFile of product.versionFiles) {
+    writeFileSync(join(ENGINE_DIR, versionFile), version)
+  }
 }
 
 const genericBuild = async (

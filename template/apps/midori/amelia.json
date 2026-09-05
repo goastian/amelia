@@ -1,0 +1,29 @@
+{
+  "name": "Midori Browser",
+  "vendor": "Astian",
+  "appId": "midori",
+  "binaryName": "midori",
+  "version": {
+    "product": "firefox",
+    "version": "155.0"
+  },
+  "buildOptions": {
+    "windowsUseSymbolicLinks": false
+  },
+  "addons": {},
+  "brands": {
+    "release": {
+      "backgroundColor": "#282A33",
+      "brandShorterName": "Midori",
+      "brandShortName": "Midori",
+      "brandFullName": "Midori Browser",
+      "release": {
+        "displayVersion": "1.0.0"
+      }
+    }
+  },
+  "license": {
+    "ignoredFiles": [".*\\.json"],
+    "licenseType": "MPL-2.0"
+  }
+}

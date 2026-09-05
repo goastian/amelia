@@ -83,4 +83,10 @@ describe('getConfig', () => {
     expect(() => getConfig()).toThrowError()
     unlinkSync(configPath)
   })
+
+  it('accepts Thunderbird projects', () => {
+    writeFileSync(configPath, '{"version": {"product": "thunderbird"}}')
+    expect(getConfig().version.product).toBe('thunderbird')
+    unlinkSync(configPath)
+  })
 })
